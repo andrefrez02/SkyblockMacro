@@ -145,6 +145,8 @@ def main():
         regiao_escolhida = definir_regiao_manualmente(janela)
     screenshot = pyautogui.screenshot(region=regiao_escolhida)
     
+    screenshot.save("debug_print.png")
+
     # 3. Ler o texto (OCR)
     # Processamos a imagem para o computador entender melhor
     imagem_processada = processar_imagem_para_ocr(screenshot)
