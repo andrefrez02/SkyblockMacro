@@ -38,58 +38,52 @@ pyautogui.FAILSAFE = True
 
 def picareta(janela):
     print("trocando por picareta")
-    pyautogui.click(janela.width / 2, janela.height / 2) 
-    pyautogui.press('4')
-    return True # Retorna True para avisar que acabou
+    return '4' # Retorna True para avisar que acabou
 
 def machado(janela):
     print("trocando por machado")
-    pyautogui.click(janela.width / 2, janela.height / 2) 
-    pyautogui.press('2')
-    return True # Retorna True para avisar que acabou
+    return '2' # Retorna True para avisar que acabou
 
 def pa(janela):
     print("trocando por pa")
-    pyautogui.click(janela.width / 2, janela.height / 2) 
-    pyautogui.press('3')
-    return True # Retorna True para avisar que acabou
+    return '3' # Retorna True para avisar que acabou
 
 def tesoura(janela):
     print("trocando por tesoura")
-    pyautogui.click(janela.width / 2, janela.height / 2) 
-    pyautogui.press('5')
-    return True # Retorna True para avisar que acabou
+    return '5' # Retorna True para avisar que acabou
 
 def enxada(janela):
     print("trocando por enxada")
-    pyautogui.click(janela.width / 2, janela.height / 2) 
-    pyautogui.press('6')
-    return True
+    return '6'
 
 def decidir_acao(texto_lido, janela):
     # Convertemos para minúsculo para facilitar a comparação
     texto = texto_lido.lower()
+    tool = '';
 
     # CASO 1: LOGIN
     # Podemos checar várias palavras que indicam a mesma coisa
     if "pickaxe" in texto:
-        picareta(janela)
-        return False # Continua o script
+        tool = picareta(janela)
 
     # CASO 2: ERRO
     elif "axe" in texto:
-        machado(janela)
-        return False
+        tool = machado(janela)
 
     # CASO 3: SUCESSO
     elif "shovel" in texto:
-        pa(janela)
-        return False
+        tool = pa(janela)
 
     # CASO 4: NADA ENCONTRADO
     else:
         print("Nenhuma palavra-chave conhecida encontrada. Aguardando...")
         return False
+    
+    if (tool != ''):
+      pyautogui.press('Esc') 
+      pyautogui.press(tool) 
+      pyautogui.click(janela.width / 2, janela.height / 2, 1, 3) 
+      return True
     
 def processar_imagem_para_ocr(imagem):
     """Converte o print para escala de cinza e aumenta contraste para o OCR ler melhor"""
