@@ -4,6 +4,8 @@ import pygetwindow as gw
 import cv2
 import numpy as np
 import time
+import threading
+from pynput import keyboard
 from PIL import Image
 import os
 
@@ -80,10 +82,20 @@ def decidir_acao(texto_lido, janela):
         return False
     
     if (tool != ''):
-      pyautogui.press('Esc') 
-      pyautogui.press(tool) 
-      pyautogui.click(janela.width / 2, janela.height / 2, 1, 3) 
-      return True
+        pyautogui.press('Esc')
+        pyautogui.press(tool)
+        # mover para o centro da TELA e manter pressionado por 1 segundo
+        screen_w, screen_h = pyautogui.size()
+        x_center, y_center = screen_w // 2, screen_h // 2
+        pyautogui.moveTo(x_center, y_center)
+        pyautogui.mouseDown()
+        try:
+            click_duration = int(_env.get('CLICK_DURATION') or 1)
+        except Exception:
+            click_duration = 1
+        time.sleep(click_duration)
+        pyautogui.mouseUp()
+        return True
     
 def processar_imagem_para_ocr(imagem):
     """Converte o print para escala de cinza e aumenta contraste para o OCR ler melhor"""
@@ -137,21 +149,57 @@ def main():
             print("Não foi possível importar 'definir_regiao_manualmente' de 'definirRegiao'.")
             raise
         regiao_escolhida = definir_regiao_manualmente(janela)
-    screenshot = pyautogui.screenshot(region=regiao_escolhida)
-    
-    screenshot.save("debug_print.png")
 
-    # 3. Ler o texto (OCR)
-    # Processamos a imagem para o computador entender melhor
-    imagem_processada = processar_imagem_para_ocr(screenshot)
-    
-    # Extrair texto (lang='por' para português, precisa instalar o pacote de idioma no Tesseract)
-    texto_extraido = pytesseract.image_to_string(imagem_processada, lang='eng') # Use 'por' se instalou
-    
-    processo_finalizado = decidir_acao(texto_extraido, janela)
+    # Lê duração em minutos do .env (chaves suportadas: RUN_MINUTES, MINUTOS, DURACAO_MINUTOS)
+    try:
+        env = load_env()
+        run_val = env.get('RUN_MINUTES') or env.get('MINUTOS') or env.get('DURACAO_MINUTOS')
+        run_minutes = float(run_val) if run_val is not None else 5.0
+    except Exception:
+        run_minutes = 5.0
 
-    if processo_finalizado:
-        print("Saindo do Macro.")
+    # Configurar listener de teclado (F12 para parar)
+    stop_event = threading.Event()
+
+    def _on_key_press(key):
+        try:
+            if key == keyboard.Key.f12:
+                print("Tecla F12 detectada: interrompendo o macro...")
+                stop_event.set()
+        except Exception:
+            pass
+
+    kb_listener = keyboard.Listener(on_press=_on_key_press)
+    kb_listener.daemon = True
+    kb_listener.start()
+
+    end_time = time.time() + run_minutes * 60.0
+    print(f"Executando ciclo por {run_minutes} minutos (pressione F12 para parar).")
+
+    # Loop principal: realizar capturas e decidir ações até o tempo expirar ou o usuário pedir stop
+    while time.time() < end_time and not stop_event.is_set():
+        screenshot = pyautogui.screenshot(region=regiao_escolhida)
+        # (Opcional) salvar debug — sobrescreve a cada ciclo
+        screenshot.save("debug_print.png")
+
+        imagem_processada = processar_imagem_para_ocr(screenshot)
+        texto_extraido = pytesseract.image_to_string(imagem_processada, lang='eng')
+        decidir_acao(texto_extraido, janela)
+
+        # pequena pausa para evitar loop extremamente rápido
+        time.sleep(0.5)
+
+    # Encerrar listener
+    try:
+        kb_listener.stop()
+    except Exception:
+        pass
+
+    if stop_event.is_set():
+        print("Macro interrompido pelo usuário (F12).")
+    else:
+        print("Tempo de execução expirado. Macro finalizado.")
+    # Fim do main: loop já efetuou os ciclos necessários
 
 if __name__ == "__main__":
     main()
